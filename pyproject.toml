@@ -1,0 +1,20 @@
+[project]
+name = "histogpt"
+version = "1.1.2"
+description="HistoGPT - PyTorch"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "einops>=0.8.1",
+    "einops-exts>=0.0.4",
+    "flamingo-pytorch>=0.1.2",
+    "openslide-python>=1.4.2",
+    "sacremoses>=0.1.1",
+    "slideio>=2.7.1",
+    "torch>=2.7.0",
+    "transformers>=4.51.3",
+]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
