@@ -11,7 +11,8 @@ import torch
 import torch.nn.functional as F
 
 from tqdm import tqdm
-from transformers import top_k_top_p_filtering, PreTrainedTokenizer
+from transformers.generation.logits_process import TopKLogitsWarper, TopPLogitsWarper
+from transformers import PreTrainedTokenizer
 from ..clam.wsi_core.WholeSlideImage import WholeSlideImage
 
 
@@ -37,8 +38,11 @@ def generate(
                 logits = model(inputs, image.float()).logits
                 logits = logits[:, -1, :] / temp
 
-            #logits[:, mask] = float('-inf')
-            logits = top_k_top_p_filtering(logits=logits, top_k=top_k, top_p=top_p)
+            # Apply top-k and top-p filtering
+            top_k_warper = TopKLogitsWarper(top_k=top_k)
+            top_p_warper = TopPLogitsWarper(top_p=top_p)
+            logits = top_k_warper(None, logits)
+            logits = top_p_warper(None, logits)
 
             probs = F.softmax(logits, dim=-1)
             probs = probs.squeeze(0)

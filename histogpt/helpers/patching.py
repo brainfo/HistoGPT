@@ -8,6 +8,7 @@ import concurrent.futures
 import h5py
 import json
 import time
+import os
 
 from pathlib import Path
 from PIL import Image
@@ -65,7 +66,7 @@ class PatchingConfigs:
 class SlideDataset(Dataset):
     def __init__(
         self,
-        slide: slideio.py_slideio.Slide,
+        slide: slideio.Slide,
         coordinates: pd.DataFrame,
         patch_size: int = 512,
         transform: list = None
@@ -332,21 +333,28 @@ def patches_to_feature(
             transform = model_dict["transforms"]
             model_name = model_dict["name"]
 
-            dataset = SlideDataset(wsi, coords, args.patch_size, transform)
-            dataloader = DataLoader(
-                dataset, batch_size=args.batch_size, num_workers=0, shuffle=False
-            )
+            # Process in smaller chunks to manage memory
+            chunk_size = 1000  # Process 1000 coordinates at a time
+            for i in range(0, len(coords), chunk_size):
+                chunk_coords = coords.iloc[i:i + chunk_size]
+                dataset = SlideDataset(wsi, chunk_coords, args.patch_size, transform)
+                dataloader = DataLoader(
+                    dataset, batch_size=args.batch_size, num_workers=0, shuffle=False
+                )
 
-            for batch in dataloader:
-                batch = batch.to(device)
-                features = model(batch.float())
-                patches_features[model_name] += (features.cpu().numpy().tolist())
+                for batch in dataloader:
+                    batch = batch.to(device)
+                    features = model(batch.float())
+                    patches_features[model_name].extend(features.cpu().numpy().tolist())
+                    # Clear CUDA cache after each batch
+                    if device.type == 'cuda':
+                        torch.cuda.empty_cache()
 
     return patches_features
 
 
 def extract_features(
-    slide: slideio.py_slideio.Slide,
+    slide: slideio.Slide,
     slide_name: str,
     model_dicts: List[Dict],
     device: torch.device,
@@ -435,6 +443,25 @@ def extract_features(
 def main(args):
     # Set device to GPU if available, else CPU
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    
+    # Aggressive memory management
+    if device.type == 'cuda':
+        # Clear all caches
+        torch.cuda.empty_cache()
+        # Reset peak memory stats
+        torch.cuda.reset_peak_memory_stats()
+        # Set memory management settings
+        os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:512,expandable_segments:True'
+        # Set memory fraction to use (reduced to 70% to be more conservative)
+        torch.cuda.set_per_process_memory_fraction(0.7)
+        # Force garbage collection
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    # Reduce batch size if using GPU
+    if device.type == 'cuda':
+        args.batch_size = min(args.batch_size, 32)  # Further reduced batch size
 
     # Get slide files based on the provided path and file extension
     slide_files = sorted(Path(args.slide_path).glob(f"**/*{args.file_extension}"))

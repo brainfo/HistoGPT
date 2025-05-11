@@ -8,10 +8,16 @@ dependencies = [
     "einops>=0.8.1",
     "einops-exts>=0.0.4",
     "flamingo-pytorch>=0.1.2",
+    "h5py>=3.13.0",
+    "ipykernel>=6.29.5",
+    "matplotlib>=3.10.3",
+    "openai>=1.78.0",
     "openslide-python>=1.4.2",
+    "pandas>=2.2.3",
     "sacremoses>=0.1.1",
     "slideio>=2.7.1",
     "torch>=2.7.0",
+    "torchvision>=0.22.0",
     "transformers>=4.51.3",
 ]
 [build-system]
