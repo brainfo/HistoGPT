@@ -14,4 +14,5 @@ uv pip install -e .
 ```
 
 ## ToDo
-- [ ] try out tutorial
+- [x] try out tutorial
+- [ ] Should we modify the chat_gpt function in the instruction and the message handling?
